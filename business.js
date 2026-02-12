@@ -49,6 +49,7 @@ async function getSchedule(empId) {
  * @param {string} endTime
  * @returns {number}
  */
+// Enforce maximum daily hours per employee per date
 function computeShiftDuration(startTime, endTime) {
   const startHours = Number(startTime.substring(0, 2))
   const startMinutes = Number(startTime.substring(2, 4))
@@ -58,7 +59,6 @@ function computeShiftDuration(startTime, endTime) {
   let startTotalMinutes = startHours * 60 + startMinutes
   let endTotalMinutes = endHours * 60 + endMinutes
 
-  // Support overnight shifts: if end is "earlier" than start, assume next day.
   if (endTotalMinutes < startTotalMinutes) {
     endTotalMinutes += 24 * 60
   }
@@ -67,6 +67,7 @@ function computeShiftDuration(startTime, endTime) {
   const diffHours = diffMinutes / 60
   return diffHours
 }
+
 
 /**
  * Check if assigning a new shift would exceed maxDailyHours for that employee on that date.
