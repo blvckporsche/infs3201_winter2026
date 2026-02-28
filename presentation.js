@@ -1,100 +1,83 @@
-// presentation.js
-const prompt = require('prompt-sync')()
+const express = require("express");
+const exphbs = require("express-handlebars");
+const business = require("./business");
 
-const {
-  listEmployees,
-  createEmployee,
-  getSchedule,
-  assignShiftWithRules
-} = require('./business')
+const app = express();
 
-/**
- * Display all employees in a formatted table.
- * @returns {Promise<void>}
- */
-async function displayEmployees() {
-  const employees = await listEmployees()
-  console.log('Employee ID  Name                 Phone')
-  console.log('----------- -------------------- ---------')
-  for (let emp of employees) {
-    console.log(`${emp.employeeId.padEnd(11)}${emp.name.padEnd(20)}${emp.phone}`)
-  }
-}
+app.engine("handlebars", exphbs.engine({
+    defaultLayout: false
+}));
+
+app.set("view engine", "handlebars");
+app.set("views", __dirname + "/views");
+
+app.use(express.urlencoded({ extended: false }));
 
 /**
- * Add a new employee by asking user for input.
- * @returns {Promise<void>}
+ * Landing Page
  */
-async function addNewEmployee() {
-  const name = prompt('Enter employee name: ')
-  const phone = prompt('Enter phone number: ')
-  await createEmployee({ name, phone })
-  console.log('Employee added...')
-}
+app.get("/", async (req, res) => {
+    const employees = await business.listEmployees();
+    res.render("landing", { employees: employees });
+});
 
 /**
- * Assign an employee to a shift, showing the result message.
- * @returns {Promise<void>}
+ * Employee Details
  */
-async function scheduleEmployee() {
-  const empId = prompt('Enter employee ID: ')
-  const shiftId = prompt('Enter shift ID: ')
-  const result = await assignShiftWithRules(empId, shiftId)
-  if (result === 'Ok') {
-    console.log('Shift Recorded')
-  } else {
-    console.log(result)
-  }
-}
+app.get("/employee/:employeeId", async (req, res) => {
 
-/**
- * Display an employee schedule in CSV-like format.
- * @returns {Promise<void>}
- */
-async function getEmployeeScheduleUI() {
-  const empId = prompt('Enter employee ID: ')
-  const details = await getSchedule(empId)
+    const employee =
+        await business.getEmployeeDetails(req.params.employeeId);
 
-  console.log('\n')
-  console.log('date,start,end')
-  for (let d of details) {
-    console.log(`${d.date},${d.startTime},${d.endTime}`)
-  }
-}
-
-/**
- * Main menu loop.
- * @returns {Promise<void>}
- */
-async function displayMenu() {
-  while (true) {
-    console.log('1. Show all employees')
-    console.log('2. Add new employee')
-    console.log('3. Assign employee to shift')
-    console.log('4. View employee schedule')
-    console.log('5. Exit')
-    const choice = Number(prompt('What is your choice> '))
-
-    if (choice === 1) {
-      await displayEmployees()
-      console.log('\n\n')
-    } else if (choice === 2) {
-      await addNewEmployee()
-      console.log('\n\n')
-    } else if (choice === 3) {
-      await scheduleEmployee()
-      console.log('\n\n')
-    } else if (choice === 4) {
-      await getEmployeeScheduleUI()
-      console.log('\n\n')
-    } else if (choice === 5) {
-      break
-    } else {
-      console.log('Error in selection')
+    if (!employee) {
+        res.send("Employee not found.");
+        return;
     }
-  }
 
-  console.log('*** Goodbye!')
+    res.render("employeeDetails", { employee: employee });
+});
+
+/**
+ * Edit Form
+ */
+app.get("/employee/:employeeId/edit", async (req, res) => {
+
+    const employee =
+        await business.getEmployeeDetails(req.params.employeeId);
+
+    if (!employee) {
+        res.send("Employee not found.");
+        return;
+    }
+
+    res.render("editEmployee", { employee: employee });
+});
+
+/**
+ * Edit Submission (PRG)
+ */
+app.post("/employee/:employeeId/edit", async (req, res) => {
+
+    const error = await business.editEmployee(
+        req.params.employeeId,
+        req.body.name,
+        req.body.phone
+    );
+
+    if (error !== null) {
+        res.send(error);
+        return;
+    }
+
+    res.redirect("/");
+});
+
+/**
+ * Start server
+ */
+async function start() {
+    await business.initialize();
+    app.listen(8000);
 }
 
-displayMenu()
+start();
