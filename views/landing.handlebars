@@ -1,0 +1,11 @@
+<h1>Employees</h1>
+
+<ul>
+{{#each employees}}
+    <li>
+        <a href="/employee/{{employeeId}}">
+            {{name}}
+        </a>
+    </li>
+{{/each}}
+</ul>
