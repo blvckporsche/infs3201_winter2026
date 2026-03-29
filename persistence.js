@@ -1,83 +1,119 @@
-const express = require("express");
-const exphbs = require("express-handlebars");
-const business = require("./business");
+const { MongoClient, ObjectId } = require("mongodb");
 
-const app = express();
+const url = "mongodb://localhost:27017/";
+const client = new MongoClient(url);
 
-app.engine("handlebars", exphbs.engine({
-    defaultLayout: false
-}));
-
-app.set("view engine", "handlebars");
-app.set("views", __dirname + "/views");
-
-app.use(express.urlencoded({ extended: false }));
+let database;
 
 /**
- * Landing Page
+ * Connect DB
  */
-app.get("/", async (req, res) => {
-    const employees = await business.listEmployees();
-    res.render("landing", { employees: employees });
-});
-
-/**
- * Employee Details
- */
-app.get("/employee/:employeeId", async (req, res) => {
-
-    const employee =
-        await business.getEmployeeDetails(req.params.employeeId);
-
-    if (!employee) {
-        res.send("Employee not found.");
-        return;
-    }
-
-    res.render("employeeDetails", { employee: employee });
-});
-
-/**
- * Edit Form
- */
-app.get("/employee/:employeeId/edit", async (req, res) => {
-
-    const employee =
-        await business.getEmployeeDetails(req.params.employeeId);
-
-    if (!employee) {
-        res.send("Employee not found.");
-        return;
-    }
-
-    res.render("editEmployee", { employee: employee });
-});
-
-/**
- * Edit Submission (PRG)
- */
-app.post("/employee/:employeeId/edit", async (req, res) => {
-
-    const error = await business.editEmployee(
-        req.params.employeeId,
-        req.body.name,
-        req.body.phone
-    );
-
-    if (error !== null) {
-        res.send(error);
-        return;
-    }
-
-    res.redirect("/");
-});
-
-/**
- * Start server
- */
-async function start() {
-    await business.initialize();
-    app.listen(8000);
+async function connect() {
+    await client.connect();
+    database = client.db("assignment4");
 }
 
-start();
+/**
+ * Employees
+ */
+async function getAllEmployees() {
+    return await database.collection("employees").find().toArray();
+}
+
+async function getEmployeeById(employeeId) {
+    return await database.collection("employees")
+        .findOne({ _id: new ObjectId(employeeId) });
+}
+
+async function updateEmployee(employeeId, name, phone) {
+    await database.collection("employees").updateOne(
+        { _id: new ObjectId(employeeId) },
+        { $set: { name: name, phone: phone } }
+    );
+}
+
+/**
+ * Shifts
+ */
+async function getAllShifts() {
+    return await database.collection("shifts").find().toArray();
+}
+
+/**
+ * Users
+ */
+async function insertUser(email, password, type) {
+    await database.collection("users").insertOne({
+        email: email,
+        password: password,
+        type: type
+    });
+}
+
+async function getUserByEmail(email) {
+    return await database.collection("users").findOne({ email: email });
+}
+
+/**
+ * Sessions
+ */
+async function createSession(email, type) {
+
+    const sessionId = Math.random().toString();
+    const expiry = Date.now() + (5 * 60 * 1000);
+
+    await database.collection("sessions").insertOne({
+        sessionId: sessionId,
+        email: email,
+        type: type,
+        expiry: expiry
+    });
+
+    return sessionId;
+}
+
+async function getSession(sessionId) {
+    return await database.collection("sessions")
+        .findOne({ sessionId: sessionId });
+}
+
+async function deleteSession(sessionId) {
+    await database.collection("sessions")
+        .deleteOne({ sessionId: sessionId });
+}
+
+async function extendSession(sessionId) {
+    const expiry = Date.now() + (5 * 60 * 1000);
+
+    await database.collection("sessions").updateOne(
+        { sessionId: sessionId },
+        { $set: { expiry: expiry } }
+    );
+}
+
+/**
+ * Security Log
+ */
+async function insertLog(email, url, method) {
+    await database.collection("security_log").insertOne({
+        timestamp: new Date(),
+        email: email,
+        url: url,
+        method: method
+    });
+}
+
+module.exports = {
+    connect,
+    getAllEmployees,
+    getEmployeeById,
+    updateEmployee,
+    getAllShifts,
+    insertUser,
+    getUserByEmail,
+    createSession,
+    getSession,
+    deleteSession,
+    extendSession,
+    insertLog
+};

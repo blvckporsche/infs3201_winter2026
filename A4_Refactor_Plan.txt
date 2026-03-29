@@ -1,0 +1,33 @@
+INFS3201 Assignment 4 – Refactor Plan
+
+1. Collections That Will Change
+
+* shifts collection will change (add employees array)
+* employees collection will change (remove employeeId)
+* assignments collection will be deleted
+
+2. Persistence Functions Changes
+
+* Remove any function that uses assignments collection
+* Update functions that use employeeId or shiftId
+* Use _id instead of employeeId and shiftId
+* Add functions to update employees array inside shifts
+
+3. Business Logic Changes
+
+* Assigning an employee to a shift will now push the employee _id into the shift's employees array
+* Removing an employee will remove their _id from the array
+* No more separate assignment logic
+
+4. Embedded Arrays Impact
+
+* Updating shifts now requires modifying the employees array
+* Must use MongoDB update operators like $push and $pull
+* Data is now grouped together instead of split across collections
+
+5. Risks / Complications
+
+* Converting string IDs to ObjectId may cause errors
+* Old code using employeeId/shiftId will break
+* Must ensure employees are not added twice
+* Must backup database before running transformation
